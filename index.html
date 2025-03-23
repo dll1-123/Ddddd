@@ -1,0 +1,124 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>زر الإضاءة الجماعي</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            transition: background-color 0.3s;
+        }
+        button {
+            width: 80px;
+            height: 80px;
+            font-size: 20px;
+            border: none;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:active {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="light-btn">اضغط</button>
+
+    <audio id="buzz-sound">
+        <source src="https://www.fesliyanstudios.com/play-mp3/4386" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const url = "https://api.jsonbin.io/v3/b/67df748a8a456b79667aded0"; // رابط JSONBin الخاص بك
+        const masterKey = "ضع_هنا_المفتاح_الجديد"; // استبدل هذا بالمفتاح الجديد
+        const button = document.getElementById("light-btn");
+        const buzzSound = document.getElementById("buzz-sound");
+
+        // دالة لقراءة حالة القفل
+        async function checkLockStatus() {
+            try {
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": masterKey
+                    }
+                });
+                const data = await response.json();
+                return data.record.locked;
+            } catch (error) {
+                console.error("خطأ أثناء جلب حالة القفل:", error);
+                return false;
+            }
+        }
+
+        // دالة لتحديث حالة القفل في JSONBin
+        async function updateLockStatus(status) {
+            try {
+                await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": masterKey
+                    },
+                    body: JSON.stringify({ record: { locked: status } })
+                });
+            } catch (error) {
+                console.error("خطأ أثناء تحديث حالة القفل:", error);
+            }
+        }
+
+        // دالة لتبديل الضوء وتشغيل الصوت
+        async function toggleLight() {
+            // تحديث القفل فورًا قبل أي شيء
+            const isLocked = await checkLockStatus();
+
+            if (isLocked) {
+                alert("الزر مغلق الآن! انتظر قليلًا.");
+                return;
+            }
+
+            // فورًا بعد التحقق، نحدث القفل في قاعدة البيانات لضمان عدم وجود ضغط متزامن
+            await updateLockStatus(true);
+
+            // تشغيل الصوت
+            buzzSound.play();
+
+            // تغيير الخلفية
+            document.body.style.backgroundColor = 'yellow';
+
+            setTimeout(async () => {
+                // إيقاف الصوت بعد 3 ثوانٍ
+                buzzSound.pause();
+                buzzSound.currentTime = 0; // إعادة الصوت للبداية
+                
+                // إعادة الخلفية للوضع العادي
+                document.body.style.backgroundColor = '#222';
+
+                // إعادة فتح الزر بعد 3 ثوانٍ
+                await updateLockStatus(false);
+            }, 3000);
+        }
+
+        // التحقق من القفل كل ثانية
+        setInterval(async () => {
+            const isLocked = await checkLockStatus();
+            button.disabled = isLocked;
+        }, 500); // تقليل الوقت إلى 0.5 ثانية لتحسين التزامن
+
+        // إضافة حدث للزر
+        button.addEventListener("click", toggleLight);
+    </script>
+
+</body>
+</html>
